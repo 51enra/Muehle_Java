@@ -1,5 +1,12 @@
 package muehletest;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Encodes a 9 men's morris map of black and white pieces into an array of 6
  * bytes (first 3 for mover, second 3 for waiter). b1: outer ring, b2: middle
@@ -79,6 +86,33 @@ public class Position {
 		this.encoding = encoding;
 	}
 
+	/**
+	 * Generate position encoding from integer index arrays (value of [0,23] for
+	 * each piece)
+	 * 
+	 * @param playerPieceIndex   Length of array = number of player pieces
+	 * @param opponentPieceIndex Length of array = number of opponent pieces
+	 */
+
+	public Position(int[] playerPieceIndex, int[] opponentPieceIndex) {
+		// No parameter range checks or bit collision checks done!!!!
+		this.encoding = new byte[6];
+		if (playerPieceIndex != null) {
+			for (int i = 0; i < playerPieceIndex.length; i++) {
+				int byteNr = playerPieceIndex[i] / 8;
+				int bitNr = playerPieceIndex[i] % 8;
+				this.encoding[byteNr] |= 1 << bitNr;
+			}
+		}
+		if (opponentPieceIndex != null) {
+			for (int i = 0; i < opponentPieceIndex.length; i++) {
+				int byteNr = opponentPieceIndex[i] / 8;
+				int bitNr = opponentPieceIndex[i] % 8;
+				this.encoding[byteNr + 3] |= 1 << bitNr;
+			}
+		}
+	}
+
 	public byte[] getEncoding() {
 		return encoding;
 	}
@@ -116,6 +150,280 @@ public class Position {
 		p1[byteCount] |= p2[byteCount];
 	}
 
+	public int[][] getPieceIndices() {
+
+		Position currentPosition = this.clone();
+		List<Integer> moverPieceListIndex = new ArrayList<>();
+		List<Integer> waiterPieceListIndex = new ArrayList<>();
+
+		for (int i = 0; i < 24; i++) {
+			int byteNr = i / 8;
+			if ((currentPosition.encoding[byteNr] & 0x01) == 1) {
+				moverPieceListIndex.add(i);
+			}
+			if ((currentPosition.encoding[byteNr + 3] & 0x01) == 1) {
+				waiterPieceListIndex.add(i);
+			}
+			currentPosition.encoding[byteNr] = (byte) (currentPosition.encoding[byteNr] >>> 1);
+			currentPosition.encoding[byteNr + 3] = (byte) (currentPosition.encoding[byteNr + 3] >>> 1);
+		}
+		int[] moverPieceIndex = new int[moverPieceListIndex.size()];
+		int[] waiterPieceIndex = new int[waiterPieceListIndex.size()];
+
+		for (int i = 0; i < moverPieceListIndex.size(); i++) {
+			moverPieceIndex[i] = moverPieceListIndex.get(i);
+		}
+		for (int i = 0; i < waiterPieceListIndex.size(); i++) {
+			waiterPieceIndex[i] = waiterPieceListIndex.get(i);
+		}
+		return new int[][] { moverPieceIndex, waiterPieceIndex };
+	}
+
+	/**
+	 * Calculate which free fields belong to an open mill (one field can be part of
+	 * up to two mills)
+	 * 
+	 * @param party 'p' for player; 'o' (or any other character) for opponent
+	 * @return the set of indices [0,23] of mill-closing fields for the requested
+	 *         party.
+	 */
+
+	public Set<Integer> getMillClosingFields(char party) {
+		int offset = 3;
+		if (party == 'p') {
+			offset = 0;
+		}
+		Set<Integer> millClosingFields = new HashSet<>();
+		// Array for checking 'vertical' mill positions
+		int[] columnChecker = new int[4];
+		for (int i = 0; i < 3; i++) {
+
+			int ring = this.encoding[i + offset] & 0xff;
+			for (int j = 0; j < 4; j++) {
+				int rowChecker = ring & 0x07;
+				if (rowChecker == 6) {
+					millClosingFields.add(i * 8 + j * 2);
+				}
+				if (rowChecker == 5) {
+					millClosingFields.add(i * 8 + 2 * j + 1);
+				}
+				if (rowChecker == 3) {
+					millClosingFields.add(i * 8 + (j + 1) * 2);
+				}
+				if ((rowChecker & 0x02) > 0) {
+					columnChecker[j] = columnChecker[j] | (0x01 << i);
+				}
+				ring = ((ring >>> 2) | (ring << 6)) & 0xff;
+			}
+		}
+		for (int j = 0; j < 4; j++) {
+			if (columnChecker[j] == 6) {
+				millClosingFields.add(2 * j + 1);
+			}
+			if (columnChecker[j] == 5) {
+				millClosingFields.add(8 + 2 * j + 1);
+			}
+			if (columnChecker[j] == 3) {
+				millClosingFields.add(16 + 2 * j + 1);
+			}
+		}
+		return millClosingFields;
+	}
+
+	/**
+	 * Calculate the number of closed mills of either Mover or Waiter.
+	 * 
+	 * @param party 'm' for mover; 'w' (or any other character) for waiter
+	 * @return the number closed mills for the requested party (int).
+	 */
+
+	public int getNumberOfMills(char party) {
+		// TODO Needed to exclude positions from further analysis
+		// e.g. one or more closed mills with more than 8 opponent pieces
+		return 0;
+	}
+
+	/**
+	 * Calculate which pieces belong to mills of either the mover or the waiter
+	 * 
+	 * @param party 'p' for player; 'o' (or any other character) for opponent
+	 * @return a Set of indices of all fields (0..23) which belong to a mill in the
+	 *         given position
+	 */
+
+	public Set<Integer> getPiecesInMills(char party) {
+		int offset = 3;
+		if (party == 'p') {
+			offset = 0;
+		}
+		Set<Integer> millPieces = new HashSet<>();
+		// Array for checking 'vertical' mill positions
+		int[] columnChecker = new int[4];
+		for (int i = 0; i < 3; i++) {
+
+			int ring = this.encoding[i + offset] & 0xff;
+			for (int j = 0; j < 4; j++) {
+				int startField = 2 * j + 8 * i;
+				if ((ring & 0x07) == 7) {
+					millPieces.addAll(Arrays.asList(startField, startField + 1));
+					if (j < 3) {
+						millPieces.add(startField + 2);
+					} else { // last field on fourth side of board equals first field on first side}
+						millPieces.add(startField - 6);
+					}
+				}
+				if ((ring & 0x02) > 0) {
+					columnChecker[j] = columnChecker[j] | (0x01 << i);
+				}
+				ring = ((ring >>> 2) | (ring << 6)) & 0xff;
+			}
+		}
+		for (int j = 0; j < 4; j++) {
+			int startField = 2 * j + 1;
+			if ((columnChecker[j] & 0x07) == 7) {
+				millPieces.addAll(Arrays.asList(startField, startField + 8, startField + 16));
+			}
+		}
+		return millPieces;
+	}
+
+	/**
+	 * Calculate which pieces of either the mover or the waiter block an opponent
+	 * mill
+	 * 
+	 * @param party 'm' for mover; 'w' (or any other character) for waiter
+	 * @return a Set of indices of all fields (0..23) which block mills in a given
+	 *         position
+	 */
+
+	public Set<Integer> getMillBlockingPieces(char party) {
+		// TODO required (for mover) to 'look ahead' which positions are lost after the
+		// next move
+		// To speed up the search for winning/losing positions
+		return null;
+	}
+
+	// Transform:
+	// "Best corner" to be transformed to index position 0 out of [0,23]. Possibly
+	// mirror on 2nd diagonal (+/-)
+	// Operations: RR90, RR180, RR270 (rotate right by x degs.); MSD (mirror 2nd
+	// diagonal); IO (flip inner/outer)
+	// 0+: no transf.; 0-: MSD / 2+: RR270; 2-: RR270+MSD / 4+: RR180; 4-: RR180+MSD
+	// 6+: RR90; 6-: RR90+MSD / 16+: IO; 16-: IO+MSD / 18+: IO+RR270; 18-:
+	// IO+RR270+MSD / etc. 20, 22
+
+	public void transform() {
+		int corner = topLeftCorner();
+		if (corner > 0) {
+			if (corner > 23) {
+				this.mirrorSecondDiagonal();
+				corner -= 24;
+			}
+			if (corner > 15) {
+				this.flipInnerOuter();
+				corner -= 16;
+			}
+			int lastCornerOnRing = 6;
+			while (corner <= lastCornerOnRing) {
+				this.rotateRightBy90Deg();
+				lastCornerOnRing -= 2;
+			}
+		}
+	}
+
+	public int topLeftCorner() {
+
+		// Check Player pieces in inner and outer ring
+		List<Integer> bestCorner = new ArrayList<>();
+
+		int[] ringByte = { this.encoding[0], this.encoding[2] };
+		for (int i = 0; i < 8; i++) {
+			// check corner fields
+			for (int j = 0; j < 2; j++) {
+				if ((i % 2 == 0) && (ringByte[j] & 0x01) == 1) {
+					bestCorner.add(j * 16 + i);
+				}
+				ringByte[j] >>>= 1;
+			}
+		}
+		if (bestCorner.size() == 0) { // No corner pieces - all corners equal
+			for (int i = 0; i < 4; i++) {
+				bestCorner.add(2 * i);
+				bestCorner.add(16 + 2 * i);
+			}
+		}
+		// Check direction by looking at middle fields
+		List<Integer> bestCornerPlus = new ArrayList<>();
+		List<Integer> bestCornerMinus = new ArrayList<>();
+		// Find at least one corner+direction combination
+		// If more than 1 equivalent corner + direction, try to eliminate by
+		// going through rings and check match to bestCorners
+		for (int corner : bestCorner) {
+			bestCornerPlus.add(corner);
+			bestCornerMinus.add(corner);
+		}
+		int ringOffset = 0;
+		int shift = 1; // Corner itself has already been checked
+		while (ringOffset < 3 && bestCornerPlus.size() + bestCornerMinus.size() > 1) {
+			while (shift < 8 && bestCornerPlus.size() + bestCornerMinus.size() > 1) {
+				List<Integer> cornersFoundPlus = checkPieceAtShiftOnRing(bestCornerPlus, shift, ringOffset, 'p');
+				List<Integer> cornersFoundMinus = checkPieceAtShiftOnRing(bestCornerMinus, -shift, ringOffset, 'p');
+				if (cornersFoundPlus.size() > 0 || cornersFoundMinus.size() > 0) {
+					bestCornerPlus = cornersFoundPlus;
+					bestCornerMinus = cornersFoundMinus;
+				}
+				shift += 1;
+			}
+			shift = 0;
+			ringOffset += 1;
+		}
+		ringOffset = 0;
+		shift = 0;
+		while (ringOffset < 3 && bestCornerPlus.size() + bestCornerMinus.size() > 1) {
+			while (shift < 8 && bestCornerPlus.size() + bestCornerMinus.size() > 1) {
+				List<Integer> cornersFoundPlus = checkPieceAtShiftOnRing(bestCornerPlus, shift, ringOffset, 'o');
+				List<Integer> cornersFoundMinus = checkPieceAtShiftOnRing(bestCornerMinus, -shift, ringOffset, 'o');
+				if (cornersFoundPlus.size() > 0 || cornersFoundMinus.size() > 0) {
+					bestCornerPlus = cornersFoundPlus;
+					bestCornerMinus = cornersFoundMinus;
+				}
+				shift += 1;
+			}
+			shift = 0;
+			ringOffset += 1;
+		}
+		if (bestCornerPlus.size() > 0) {
+			return bestCornerPlus.get(0);
+		} else {
+			return bestCornerMinus.get(0) + 24;
+		}
+	}
+
+	private List<Integer> checkPieceAtShiftOnRing(List<Integer> bestCorners, int shift, int ringOffset, char party) {
+		// shift between 0 and +-7; offset between 0 (same ring) and 2 (inner--> outer /
+		// outer--> inner)
+		int encodingStart = 0;
+		if (party == 'o') {
+			encodingStart = 3;
+		}
+		List<Integer> cornersFound = new ArrayList<>();
+		for (int corner : bestCorners) {
+			int byteNr;
+			if (corner < 8) {
+				byteNr = corner / 8 + ringOffset + encodingStart;
+			} else {
+				byteNr = corner / 8 - ringOffset + encodingStart;
+			}
+			int ringByte = this.encoding[byteNr];
+			if ((ringByte >>> ((corner + shift + 8) % 8) & 0x01) == 1) {
+				cornersFound.add(corner);
+			}
+		}
+		return cornersFound;
+	}
+
+	// c=0..6 ro 0 --> 0, ro 1 --> 1, ro 2 --> 2
+	// c=16..22 ro 0 --> 2, ro 1 --> 1, ro 2 --> 0
 	/**
 	 * Removes a 'mover' piece from the 9mm board at the position indicated by
 	 * index.
@@ -284,7 +592,6 @@ public class Position {
 
 		return byteCount * 8 + bitCount;
 	}
-	
 
 	/**
 	 * Finds the last free field on the 9mm board where neither a 'mover' nor a
@@ -294,17 +601,17 @@ public class Position {
 	 */
 
 	public int findLastFreeFieldBefore(int index) {
-		int byteCount = index/8;
+		int byteCount = index / 8;
 		int bitCount = index % 8;
 		int bitFlag;
 		if (bitCount == 0) {
 			bitFlag = 128;
-			byteCount -=1;
+			byteCount -= 1;
 			if (byteCount < 0) {
 				return 24;
 			}
 		} else {
-			bitFlag = 1<<(bitCount - 1);
+			bitFlag = 1 << (bitCount - 1);
 		}
 		do {
 			while (bitFlag != 0 && (this.getEncoding()[byteCount] & bitFlag) != 0
@@ -418,7 +725,6 @@ public class Position {
 
 		return (byte) c;
 	}
-	
 
 	// printPos Example: (/ in the middle protects against ctrl-shift-f; should be
 	// /space/ really).
@@ -519,7 +825,7 @@ public class Position {
 		}
 		return new Position(encoding);
 	}
-	
+
 	// does this make sense?
 	@Override
 	public int hashCode() {

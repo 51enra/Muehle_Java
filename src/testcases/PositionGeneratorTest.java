@@ -34,7 +34,7 @@ class PositionGeneratorTest {
 		for (int i = 0; i < nrPieces; i++) {
 			bitRepresentationMirrored |= 1 << (23 - pieceIndexMirrored[i]);
 		}
-		PositionGenerator positionGenerator = new PositionGenerator(3, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		System.out.println(bitRepresentation);
 		assertEquals(positionGenerator.mirrorSecondDiagonal(bitRepresentation), bitRepresentationMirrored);
 	}
@@ -54,7 +54,7 @@ class PositionGeneratorTest {
 		for (int i = 0; i < nrPieces; i++) {
 			bitRepresentationRotated |= 1 << (23 - pieceIndexRotated[i]);
 		}
-		PositionGenerator positionGenerator = new PositionGenerator(3, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		System.out.println(bitRepresentation);
 		System.out.println(positionGenerator.rotate90Degrees(bitRepresentation));
 		assertEquals(positionGenerator.rotate90Degrees(bitRepresentation), bitRepresentationRotated);
@@ -64,7 +64,7 @@ class PositionGeneratorTest {
 	void testSymmetries() {
 
 		int[] pieceIndex = { 0, 2, 4, 6};
-		PositionGenerator positionGenerator = new PositionGenerator(4, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		positionGenerator.setMoverPieceIndex(pieceIndex);
 		
 		List<Integer> symmetries = new ArrayList<>();
@@ -83,7 +83,7 @@ class PositionGeneratorTest {
 	void testSymmetriesNull() {
 
 		int[] pieceIndex = { 2, 4, 6};
-		PositionGenerator positionGenerator = new PositionGenerator(3, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		positionGenerator.setMoverPieceIndex(pieceIndex);
 
 		assertEquals(positionGenerator.symmetries(), null);
@@ -93,7 +93,7 @@ class PositionGeneratorTest {
 	void testCheckSymmetriesFalse() {
 
 		int[] pieceIndex = { 0, 2, 4};
-		PositionGenerator positionGenerator = new PositionGenerator(3, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		positionGenerator.setWaiterPieceIndex(pieceIndex);
 		List<Integer> symmetries = new ArrayList<>();
 		symmetries.add(1);
@@ -111,7 +111,7 @@ class PositionGeneratorTest {
 	void testCheckSymmetriesTrue() {
 
 		int[] pieceIndex = { 0, 6, 14};
-		PositionGenerator positionGenerator = new PositionGenerator(3, 3);
+		PositionGenerator positionGenerator = new PositionGenerator();
 		positionGenerator.setWaiterPieceIndex(pieceIndex);
 		List<Integer> symmetries = new ArrayList<>();
 		symmetries.add(2);

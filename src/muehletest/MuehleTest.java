@@ -1,32 +1,67 @@
 package muehletest;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class MuehleTest {
 
 	public static void main(String[] args) {
 
-//		Position testPos = new Position(new byte[] { (byte) 255, (byte) 0, (byte) 0, (byte) 0, (byte) 1, (byte) (128+32) });
-//		Position testPos2 = new Position(new byte[] { (byte) 32, (byte) 8, (byte) 96, (byte) 4, (byte) 2, (byte) -128 });
-//		Position testPos = new Position(new byte[] { (byte) 99, (byte) 0, (byte) 34, (byte) 0, (byte) 68, (byte) 0 });
-// 0110011, 0100100, 0010010
+		PositionIterator positionIterator = new PositionIterator();
+		positionIterator.init(4, 3);
 
-//		System.out.println(testPos.findLastFreeFieldBefore(23));
+//		Position position = positionIterator.getNextPlayerPosition();	
+//		position.printPos();
 
-		int[] moverCount = {10, 11, 12};//{3, 4, 4, 5, 5}; 
-		int[] waiterCount = {10, 11, 12};//{3, 3, 4, 3, 4};//
-		
-		System.out.println("Mover,Waiter,Count,Time (ms)");
-		
-		for (int i = 0; i< moverCount.length; i++) {
-				long before = System.currentTimeMillis();
-				PositionGenerator generator = new PositionGenerator(moverCount[i], waiterCount[i]);
-				generator.generateAllDifferent();
-				long elapsed = System.currentTimeMillis() - before;
-				System.out.println(moverCount[i] + "," + waiterCount[i] + "," + generator.getPositionCount() + "," + elapsed);
+		List<String[]> stringRepresentation = new ArrayList<String[]>();
+
+		Position position = positionIterator.getNextPlayerPosition();
+		int posCount = 1;
+
+		while (position != null) {
+			stringRepresentation.add(position.getStringRepresentation());
+			position = positionIterator.getNextPlayerPosition();
+			posCount += 1;
 		}
+
+		int boardsPerRow = 6;
+		int startPos = posCount - 78;
+		
+		
+		System.out.println("Anzahl Positionen: " + posCount);
+
+		for (int nRows = 0; nRows < 13; nRows++) {
+			System.out.println();
+			String rowString;
+			for (int j = 0; j < 7; j++) {
+				rowString = "   ";
+				for (int k = 0; k < boardsPerRow; k++) {
+					rowString += stringRepresentation.get(startPos + nRows * boardsPerRow + k)[j] + "      ";
+					if (startPos + nRows * boardsPerRow + k + 1 >= stringRepresentation.size())
+						break;
+				}
+				System.out.println(rowString);
+			}
+		}
+
+	}
+
+//		int[] moverCount = {5, 4, 6};//{3, 4, 4, 5, 5}; 
+//		int[] waiterCount = {5, 4, 6};//{3, 3, 4, 3, 4};//
+//		
+//		System.out.println("Mover,Waiter,Count,Time (ms)");
+//		
+//		for (int i = 0; i< moverCount.length; i++) {
+//				long before = System.currentTimeMillis();
+//				PositionGenerator generator = new PositionGenerator(moverCount[i], waiterCount[i]);
+//				generator.generateAllDifferent();
+//				long elapsed = System.currentTimeMillis() - before;
+//				System.out.println(moverCount[i] + "," + waiterCount[i] + "," + generator.getPositionCount() + "," + elapsed);
+//		}
 
 //		PositionGenerator generator = new PositionGenerator(5, 5);
 //		List<Position> permutations = generator.generateAllDifferent();
@@ -74,7 +109,5 @@ public class MuehleTest {
 //				System.out.println(rowString);
 //			}
 //		}
-
-	}
 
 }

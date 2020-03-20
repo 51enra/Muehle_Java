@@ -1,6 +1,5 @@
 package muehletest;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -150,34 +149,50 @@ public class Position {
 		p1[byteCount] |= p2[byteCount];
 	}
 
-	public int[][] getPieceIndices() {
+	/**
+	 * Get indices of fields occupied by player pieces for a 9mm position encoded in bytes.
+	 * 
+	 * @return a List of Integers with the indices [0..23] of player pieces.
+	 * The List is sorted by increasing index. 
+	 */
+	
+	public List<Integer> getPlayerPieceIndices() {
 
 		Position currentPosition = this.clone();
-		List<Integer> moverPieceListIndex = new ArrayList<>();
-		List<Integer> waiterPieceListIndex = new ArrayList<>();
+		List<Integer> playerPieceIndexList = new ArrayList<>();
 
 		for (int i = 0; i < 24; i++) {
 			int byteNr = i / 8;
 			if ((currentPosition.encoding[byteNr] & 0x01) == 1) {
-				moverPieceListIndex.add(i);
-			}
-			if ((currentPosition.encoding[byteNr + 3] & 0x01) == 1) {
-				waiterPieceListIndex.add(i);
+				playerPieceIndexList.add(i);
 			}
 			currentPosition.encoding[byteNr] = (byte) (currentPosition.encoding[byteNr] >>> 1);
+		}
+		return playerPieceIndexList;
+	}
+	
+	/**
+	 * Get indices of fields occupied by opponent pieces for a 9mm position encoded in bytes.
+	 * 
+	 * @return a List of Integers with the indices [0..23] of opponent pieces.
+	 * The List is sorted by increasing index. 
+	 */
+	
+	public List<Integer> getOpponentPieceIndices() {
+
+		Position currentPosition = this.clone();
+		List<Integer> opponentPieceIndexList = new ArrayList<>();
+
+		for (int i = 0; i < 24; i++) {
+			int byteNr = i / 8;
+			if ((currentPosition.encoding[byteNr + 3] & 0x01) == 1) {
+				opponentPieceIndexList.add(i);
+			}
 			currentPosition.encoding[byteNr + 3] = (byte) (currentPosition.encoding[byteNr + 3] >>> 1);
 		}
-		int[] moverPieceIndex = new int[moverPieceListIndex.size()];
-		int[] waiterPieceIndex = new int[waiterPieceListIndex.size()];
-
-		for (int i = 0; i < moverPieceListIndex.size(); i++) {
-			moverPieceIndex[i] = moverPieceListIndex.get(i);
-		}
-		for (int i = 0; i < waiterPieceListIndex.size(); i++) {
-			waiterPieceIndex[i] = waiterPieceListIndex.get(i);
-		}
-		return new int[][] { moverPieceIndex, waiterPieceIndex };
+		return opponentPieceIndexList;
 	}
+	
 
 	/**
 	 * Calculate which free fields belong to an open mill (one field can be part of
@@ -227,6 +242,17 @@ public class Position {
 				millClosingFields.add(16 + 2 * j + 1);
 			}
 		}
+		// remove fields which are occupied by the other party
+		Set<Integer> occupiedFields = new HashSet<>();
+		for (Integer field : millClosingFields) {
+			int byteNr = field / 8;
+			int bitNr = field % 8;
+			if ((this.encoding[3 + byteNr - offset] & (0x01 << bitNr)) != 0) {
+              occupiedFields.add(field);
+			}
+		}
+		millClosingFields.removeAll(occupiedFields);
+		
 		return millClosingFields;
 	}
 
@@ -288,46 +314,75 @@ public class Position {
 	}
 
 	/**
-	 * Calculate which pieces of either the mover or the waiter block an opponent
-	 * mill
+	 * For a set of indices indicating fields where the Player could close mills,
+	 * calculate how many are not blocked by opponent pieces.
 	 * 
-	 * @param party 'm' for mover; 'w' (or any other character) for waiter
-	 * @return a Set of indices of all fields (0..23) which block mills in a given
-	 *         position
+	 * @return the number of free fields where the Player can close a mill.
 	 */
 
-	public Set<Integer> getMillBlockingPieces(char party) {
-		// TODO required (for mover) to 'look ahead' which positions are lost after the
-		// next move
-		// To speed up the search for winning/losing positions
-		return null;
+	public int getNrOpenMills(Set<Integer> millClosingFields) {
+		int nrOpenMills = millClosingFields.size();
+		for (int fieldIndex : millClosingFields) {
+			int byteNr = fieldIndex / 8;
+			int bitNr = fieldIndex % 8;
+			if ((this.encoding[byteNr + 3] & (1 << bitNr)) != 0) {
+				nrOpenMills -= 1;
+			}
+		}
+		return nrOpenMills;
+	}
+
+	/**
+	 * Swap player and opponent pieces and transform the resulting position to
+	 * "normal" form, meaning the variant created by PositionIterator if different
+	 * symmetrical variations exist.
+	 */
+
+	public Position transpose() {
+		// swap player and opponent pieces
+		byte[] transEncoding = new byte[6];
+		for (int i = 0; i < 3; i++) {
+			transEncoding[i] = this.encoding[i + 3];
+			transEncoding[i + 3] = this.encoding[i];
+		}
+		Position transPosition = new Position(transEncoding);
+		// transform to "normal" form
+		return transPosition.transform();
 	}
 
 	// Transform:
 	// "Best corner" to be transformed to index position 0 out of [0,23]. Possibly
 	// mirror on 2nd diagonal (+/-)
+	// "Best corner" determined by: player pieces at as low as possible index
+	// values;
+	// in case of equal ranking of corners also consider opponent pieces.
 	// Operations: RR90, RR180, RR270 (rotate right by x degs.); MSD (mirror 2nd
 	// diagonal); IO (flip inner/outer)
 	// 0+: no transf.; 0-: MSD / 2+: RR270; 2-: RR270+MSD / 4+: RR180; 4-: RR180+MSD
 	// 6+: RR90; 6-: RR90+MSD / 16+: IO; 16-: IO+MSD / 18+: IO+RR270; 18-:
 	// IO+RR270+MSD / etc. 20, 22
 
-	public void transform() {
+	public Position transform() {
+		Position transPosition = this.clone();
 		int corner = topLeftCorner();
-		if (corner > 0) {
-			if (corner > 23) {
-				this.mirrorSecondDiagonal();
-				corner -= 24;
-			}
-			if (corner > 15) {
-				this.flipInnerOuter();
-				corner -= 16;
-			}
-			int lastCornerOnRing = 6;
-			while (corner <= lastCornerOnRing) {
-				this.rotateRightBy90Deg();
-				lastCornerOnRing -= 2;
-			}
+		boolean mirror = false;
+		if (corner > 23) {
+			mirror = true;
+			corner -= 24;
+		}
+		if (corner > 15) {
+			transPosition = transPosition.flipInnerOuter();
+			corner -= 16;
+		}
+		int lastCornerOnRing = 6;
+		while (corner > 0 && corner <= lastCornerOnRing) {
+			transPosition = transPosition.rotateRightBy90Deg();
+			lastCornerOnRing -= 2;
+		}
+		if (mirror) {
+			return transPosition.mirrorSecondDiagonal();
+		} else {
+			return transPosition;
 		}
 	}
 
@@ -422,8 +477,6 @@ public class Position {
 		return cornersFound;
 	}
 
-	// c=0..6 ro 0 --> 0, ro 1 --> 1, ro 2 --> 2
-	// c=16..22 ro 0 --> 2, ro 1 --> 1, ro 2 --> 0
 	/**
 	 * Removes a 'mover' piece from the 9mm board at the position indicated by
 	 * index.
@@ -442,48 +495,6 @@ public class Position {
 		int byteCount = index / 8;
 		p1[byteCount] ^= p2[byteCount];
 	}
-
-//	public int getMoverPieceIndex(int pieceNr) {
-//		
-//		if (pieceNr < 0) {
-//			throw new IllegalArgumentException("getMoverPieceIndex: Negative pieceNr!");
-//		}
-//
-//		int index;
-//		int integerRepresentation = this.encoding[0] + this.encoding[1] * 256 + this.encoding[2] * 65536;
-//		for (index = 0; index < 24; index++) {
-//			if ((integerRepresentation & 1) == 1) {
-//				pieceNr -= 1;
-//				integerRepresentation >>>= 1;
-//			}
-//			if (pieceNr < 0) {
-//				break;
-//			}
-//		}
-//
-//		return index;
-//	}
-//	
-//	public int getWaiterPieceIndex(int pieceNr) {
-//		
-//		if (pieceNr < 0) {
-//			throw new IllegalArgumentException("getWaiterPieceIndex: Negative pieceNr!");
-//		}
-//
-//		int index;
-//		int integerRepresentation = this.encoding[3] + this.encoding[4] * 256 + this.encoding[5] * 65536;
-//		for (index = 0; index < 24; index++) {
-//			if ((integerRepresentation & 1) == 1) {
-//				pieceNr -= 1;
-//				integerRepresentation >>>= 1;
-//			}
-//			if (pieceNr < 0) {
-//				break;
-//			}
-//		}
-//
-//		return index;
-//	}
 
 	/**
 	 * Removes a 'waiter' piece from the 9mm board at the position indicated by

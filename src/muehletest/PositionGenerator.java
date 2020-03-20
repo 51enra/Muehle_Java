@@ -75,6 +75,7 @@ public class PositionGenerator {
 		int fieldStepperLimit = this.fieldNrExcludingInner;
 		// Higher fields will produce redundant positions for some pieces due to
 		// inner-outer symmetry
+		//TODO : condition should be: ...&& pieceNr > this.getNrMoverPieces() / 2
 		if (this.moverPieceIndex[0] <= 1 && pieceNr >= this.getNrMoverPieces() / 2) {
 			fieldStepperLimit = this.fieldNr;
 		}
@@ -232,13 +233,6 @@ public class PositionGenerator {
 			} else {
 
 				if (!checkSymmetries(symmetries)) {
-//					// Ignore this position and continue on first field of next inner ring
-//					int jumpForwardIndex = (freeFieldArray[i] / 8 + 1) * 8;
-//					do {
-//						i++;
-//					} while ((i < freeFieldArray.length - 1) && (freeFieldArray[i] < jumpForwardIndex));
-//					i--;
-//				} else {
 					doPositionAnalysis();
 				}
 			}

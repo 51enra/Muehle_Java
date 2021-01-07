@@ -2,49 +2,51 @@ package muehletest;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class MuehleTest {
 
 	public static void main(String[] args) {
 
-//		PositionIterator positionIterator = new PositionIterator();
-//		positionIterator.init(3, 3);
+		PositionIterator positionIterator = new PositionIterator();
+		positionIterator.init(3, 3);
 
 		PositionAnalysis positionAnalysis = new PositionAnalysis(3);
-		List<Position> positions = positionAnalysis.findGameEndPositions(3);
-		int posCount = positions.size();
+//		List<Position> positions = positionAnalysis.findGameEndPositions(3);
 		List<String[]> stringRepresentation = new ArrayList<String[]>();
-//		List<Position> positions = new ArrayList<>();
-//		Position position = positionIterator.getNextPlayerPosition();
+
 //		while (position != null) {
 //			position = positionIterator.getNextPlayerPosition();
 //			positions.add(position);
 //		}
+        for(int i=0; i<100; i++) {
+        	positionIterator.getNextPlayerPosition();
+        }
 
-//		int posCount = 1;
-//
-//		while (position != null) {
-//			stringRepresentation.add(position.getStringRepresentation());
-//			position = positionIterator.getNextPlayerPosition();
-//			posCount += 1;
-//		}
-
-//		List<Position> positions = positionIterator.findLosingOpponentPositions(null, 0);
+		List<Position> positions = positionIterator.findLosingOpponentPositions(null, 0);
+		
+		Position position = positions.get(5);		
+		position.printPos();
+		System.out.println();
+		
+		List<Position> predecessorPositions = positionAnalysis.findAllPredecessors(position);
+		int posCount = predecessorPositions.size();
 		System.out.println("Anzahl Positionen: " + posCount);
+		
 
 		int boardsPerRow = 6;
 
-		for (int i = 0; i < 3616; i++) {
+		for (int i = 0; i < 4; i++) {
 //		  	if (positions.get(i).getEncoding()[2] > 0) {
-				stringRepresentation.add(positions.get(i).getStringRepresentation());
+				stringRepresentation.add(predecessorPositions.get(i).getStringRepresentation());
 //			}
 		}
 
-		System.out.println(stringRepresentation.size());
+//		System.out.println(stringRepresentation.size());
 
-		int startPos = 3300; // stringRepresentation.size() - 384;
+		int startPos = 0; // stringRepresentation.size() - 384;
 
-		for (int nRows = 0; nRows < 64; nRows++) {
+		for (int nRows = 0; nRows < 3; nRows++) {
 			System.out.println();
 			String rowString;
 			for (int j = 0; j < 7; j++) {

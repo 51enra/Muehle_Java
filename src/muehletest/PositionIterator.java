@@ -52,7 +52,7 @@ public class PositionIterator {
 
 		int i = nrPlayerPieces - 1;
 		while (i > 0 && playerPieceIndex[i] >= fieldNrExcludingInner - nrPlayerPieces + i) {
-			if (playerPieceIndex[0] <= 1 && i > nrPlayerPieces / 2
+			if (playerPieceIndex[0] <= 1 && i >= (nrPlayerPieces +1) / 2
 					&& playerPieceIndex[i] < FIELDNR - nrPlayerPieces + i) {
 				// Inner ring fields will produce redundant positions due to inner-outer
 				// symmetries except if i fulfills above conditions
@@ -107,9 +107,9 @@ public class PositionIterator {
 
 		Position position = getNextPosition(freeFieldArray);
 		while (position != null) {
-			if (position.getNrOpenMills(millClosingFields) >= requiredOptions) {
+//			if (position.getNrOpenMills(millClosingFields) >= requiredOptions) {
 				losingOpponentPosition.add(position);
-			}
+//			}
 			position = getNextPosition(freeFieldArray);
 		}
 		return losingOpponentPosition;

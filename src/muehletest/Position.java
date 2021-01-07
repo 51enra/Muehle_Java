@@ -87,7 +87,7 @@ public class Position {
 
 	/**
 	 * Generate position encoding from integer index arrays (value of [0,23] for
-	 * each piece)
+	 * each piece). Arrays don't need to be sorted by field index.
 	 * 
 	 * @param playerPieceIndex   Length of array = number of player pieces
 	 * @param opponentPieceIndex Length of array = number of opponent pieces
@@ -107,6 +107,33 @@ public class Position {
 			for (int i = 0; i < opponentPieceIndex.length; i++) {
 				int byteNr = opponentPieceIndex[i] / 8;
 				int bitNr = opponentPieceIndex[i] % 8;
+				this.encoding[byteNr + 3] |= 1 << bitNr;
+			}
+		}
+	}
+	
+	/**
+	 * Generate position encoding from Lists of Integers (value of [0,23] for
+	 * each piece). Lists don't need to be sorted by field index.
+	 * 
+	 * @param playerPieceIndex   Size of List = number of player pieces
+	 * @param opponentPieceIndex Size of List = number of opponent pieces
+	 */
+
+	public Position(List<Integer> playerPieceIndex, List<Integer> opponentPieceIndex) {
+		// No parameter range checks or bit collision checks done!!!!
+		this.encoding = new byte[6];
+		if (playerPieceIndex != null) {
+			for (int field : playerPieceIndex) {
+				int byteNr = field / 8;
+				int bitNr = field % 8;
+				this.encoding[byteNr] |= 1 << bitNr;
+			}
+		}
+		if (opponentPieceIndex != null) {
+			for (int field: opponentPieceIndex) {
+				int byteNr = field / 8;
+				int bitNr = field % 8;
 				this.encoding[byteNr + 3] |= 1 << bitNr;
 			}
 		}
@@ -193,6 +220,57 @@ public class Position {
 		return opponentPieceIndexList;
 	}
 	
+	/**
+	 * Get all free field indices (fields not occupied by either a player or an opponent piece).
+	 * 
+	 * @return A List of Integer indices [0..23] of all free fields for the given position
+	 */
+	
+	List<Integer> getFreeFields() {
+		List<Integer> freeFields = new ArrayList<>();
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 8; j++) {
+				if (((this.encoding[i]>>>j) & 0x01) == 0
+						&& ((this.encoding[i+3]>>>j) & 0x01) == 0) {
+					freeFields.add(i*8+j);
+				}
+			}
+		}
+		return freeFields;
+	}
+	
+	
+ /**
+  * Get indices of free fields which can be reached in one draw from a given field index.
+  * No check whether the given field is occupied by a player or opponent piece.
+  * 
+  * @param index The index [0..23] of the field for which free neighbors shall be found.
+  * @return a List of Integer indices of free neighbor fields
+  */
+	
+	List<Integer> getFreeNeighborFields(int index) {
+        List<Integer> neighbors = new ArrayList<>();
+        neighbors.add(index / 8 * 8 + (index + 1) % 8);
+		neighbors.add(index / 8 * 8 + (index + 7) % 8);
+		if (index % 2 > 0) {
+			if (index < 16) {
+				neighbors.add(index + 8);
+			}
+			if (index > 8) {
+				neighbors.add(index - 8);
+			}			
+		}
+		List<Integer> freeNeighbors = new ArrayList<Integer>();
+		for (int neighbor : neighbors) {
+			int byteNr = neighbor / 8;
+			int bitNr = neighbor % 8;
+			if (((this.encoding[byteNr]>>>bitNr) & 0x01) == 0
+					&& ((this.encoding[byteNr+3]>>>bitNr) & 0x01) == 0) {
+				freeNeighbors.add(neighbor);
+			}
+		}
+		return freeNeighbors;
+	}
 
 	/**
 	 * Calculate which free fields belong to an open mill (one field can be part of
@@ -277,12 +355,12 @@ public class Position {
 	 *         given position
 	 */
 
-	public Set<Integer> getPiecesInMills(char party) {
+	public List<Integer> getPiecesInMills(char party) {
 		int offset = 3;
 		if (party == 'p') {
 			offset = 0;
 		}
-		Set<Integer> millPieces = new HashSet<>();
+		List<Integer> millPieces = new ArrayList<>();
 		// Array for checking 'vertical' mill positions
 		int[] columnChecker = new int[4];
 		for (int i = 0; i < 3; i++) {

@@ -75,8 +75,7 @@ public class PositionGenerator {
 		int fieldStepperLimit = this.fieldNrExcludingInner;
 		// Higher fields will produce redundant positions for some pieces due to
 		// inner-outer symmetry
-		//TODO : condition should be: ...&& pieceNr > this.getNrMoverPieces() / 2
-		if (this.moverPieceIndex[0] <= 1 && pieceNr >= this.getNrMoverPieces() / 2) {
+		if (this.moverPieceIndex[0] <= 1 && pieceNr >= (this.getNrMoverPieces() + 1) / 2) {
 			fieldStepperLimit = this.fieldNr;
 		}
 
